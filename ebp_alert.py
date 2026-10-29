@@ -6,7 +6,7 @@ TOKEN, CHAT = os.environ["TG_TOKEN"], os.environ["TG_CHAT"]
 # name -> Yahoo ticker (add as many as you want)
 MARKETS = {"NQ1!": "NQ=F", "ES1!": "ES=F", "GC1!": "GC=F", "YM1!": "YM=F", "CL1!": "CL=F"}
 TFS = ["1W", "1D", "6H", "4H", "3H", "2H", "1H"]   # remove any you don't want
-DOJI_MIN, REQ_OPP, FRESH_MIN = 0.20, True, 100000
+DOJI_MIN, REQ_OPP, FRESH_MIN = 0.20, True, 60
 
 FREQ = {"1D": "1D", "6H": "6h", "4H": "4h", "3H": "3h", "2H": "2h", "1H": "1h"}
 DUR = {"1W": pd.Timedelta(days=7), "1D": pd.Timedelta(days=1), "6H": pd.Timedelta(hours=6),
@@ -50,7 +50,7 @@ def ebp(r):
     if c.High > p.High and c.Close < min(p.Open, p.Close) and c.Close < c.Open and (not REQ_OPP or p.Close > p.Open):
         return -1
     return 0
-send("EBP bot test")
+
 state = json.load(open("state.json")) if os.path.exists("state.json") else []
 
 for name, tk in MARKETS.items():
