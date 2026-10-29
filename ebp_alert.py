@@ -15,8 +15,9 @@ DUR = {"1W": pd.Timedelta(days=7), "1D": pd.Timedelta(days=1), "6H": pd.Timedelt
 SHIFT = pd.Timedelta(hours=18)  # CME session starts 18:00 New York
 
 def send(msg):
-    requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage",
-                  data={"chat_id": CHAT, "text": msg}, timeout=15)
+    r = requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage",
+                      data={"chat_id": CHAT, "text": msg}, timeout=15)
+    print("TG:", r.status_code, r.text)
 
 def load(ticker):
     df = yf.download(ticker, period="60d", interval="1h", progress=False, auto_adjust=False)
@@ -49,7 +50,7 @@ def ebp(r):
     if c.High > p.High and c.Close < min(p.Open, p.Close) and c.Close < c.Open and (not REQ_OPP or p.Close > p.Open):
         return -1
     return 0
-
+send("EBP bot test")
 state = json.load(open("state.json")) if os.path.exists("state.json") else []
 
 for name, tk in MARKETS.items():
@@ -60,6 +61,7 @@ for name, tk in MARKETS.items():
         for tf in TFS:
             r, now = candles(df, tf)
             d = ebp(r)
+            print(name, tf, "last candle:", r.index[-1] if len(r) else None, "ebp:", d)
             if d == 0:
                 continue
             start = r.index[-1]
