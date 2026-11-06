@@ -6,13 +6,14 @@ TOKEN, CHAT = os.environ["TG_TOKEN"], os.environ["TG_CHAT"]
 # name -> Yahoo ticker (add as many as you want)
 MARKETS = {"NQ1!": "NQ=F", "ES1!": "ES=F", "GC1!": "GC=F", "YM1!": "YM=F", "CL1!": "CL=F"}
 TFS = ["1W", "1D", "6H", "4H", "3H", "2H", "1H"]   # remove any you don't want
-DOJI_MIN, REQ_OPP, FRESH_MIN = 0.20, True, 60
+DOJI_MIN, REQ_OPP, FRESH_MIN = 0.20, False, 60
 
 FREQ = {"1D": "1D", "6H": "6h", "4H": "4h", "3H": "3h", "2H": "2h", "1H": "1h"}
 DUR = {"1W": pd.Timedelta(days=7), "1D": pd.Timedelta(days=1), "6H": pd.Timedelta(hours=6),
        "4H": pd.Timedelta(hours=4), "3H": pd.Timedelta(hours=3),
        "2H": pd.Timedelta(hours=2), "1H": pd.Timedelta(hours=1)}
 SHIFT = pd.Timedelta(hours=18)  # CME session starts 18:00 New York
+SETTLE = pd.Timedelta(minutes=5)
 
 def send(msg):
     r = requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage",
@@ -35,7 +36,7 @@ def candles(df, tf):
     else:
         r = df.resample(FREQ[tf], origin="start_day").agg(agg).dropna()
     now = pd.Timestamp.now(tz="America/New_York").tz_localize(None) - SHIFT
-    r = r[r.index + DUR[tf] <= now]
+    r = r[r.index + DUR[tf] + SETTLE <= now]
     return r, now
 
 def ebp(r):
