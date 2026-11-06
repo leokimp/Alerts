@@ -68,7 +68,7 @@ for name, tk in MARKETS.items():
             age = (now - (start + DUR[tf])).total_seconds() / 60
             key = f"{name}|{tf}|{start}"
             if age <= FRESH_MIN and key not in state:
-                send(f"{name} | {tf} {'BULL' if d == 1 else 'BEAR'} EBP closed. Watch the pullback.")
+                send(f"{name} | {tf} {'BULL' if d == 1 else 'BEAR'} EBP closed{int(age)} min ago.")
                 state.append(key)
     except Exception as e:
         print(name, e)
