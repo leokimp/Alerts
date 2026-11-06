@@ -4,7 +4,13 @@ import pandas as pd, yfinance as yf
 TOKEN, CHAT = os.environ["TG_TOKEN"], os.environ["TG_CHAT"]
 
 # name -> Yahoo ticker (add as many as you want)
-MARKETS = {"NQ1!": "NQ=F", "ES1!": "ES=F", "GC1!": "GC=F", "YM1!": "YM=F", "CL1!": "CL=F"}
+MARKETS = {
+    "NQ1!": "NQ=F", "ES1!": "ES=F", "GC1!": "GC=F", "YM1!": "YM=F", "CL1!": "CL=F",
+    "SILVER": "SI=F",
+    "BTCUSD": "BTC-USD",
+    "ETHUSD": "ETH-USD",
+}
+CRYPTO = {"BTCUSD", "ETHUSD"}   # trade 24/7, candles start at 00:00 UTC
 TFS = ["1W", "1D", "6H", "4H", "3H", "2H", "1H"]   # remove any you don't want
 DOJI_MIN, REQ_OPP, FRESH_MIN = 0.20, False, 60
 
@@ -15,27 +21,34 @@ DUR = {"1W": pd.Timedelta(days=7), "1D": pd.Timedelta(days=1), "6H": pd.Timedelt
 SHIFT = pd.Timedelta(hours=18)  # CME session starts 18:00 New York
 SETTLE = pd.Timedelta(minutes=5)
 
+def clock(name):
+    # crypto: plain UTC, no shift. futures/index: New York time shifted to the 18:00 session start
+    return ("UTC", pd.Timedelta(0)) if name in CRYPTO else ("America/New_York", SHIFT)
+
 def send(msg):
     r = requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage",
                       data={"chat_id": CHAT, "text": msg}, timeout=15)
     print("TG:", r.status_code, r.text)
 
-def load(ticker):
+def load(name, ticker):
     df = yf.download(ticker, period="60d", interval="1h", progress=False, auto_adjust=False)
     if df.empty:
         return df
     df.columns = df.columns.get_level_values(0)
+    tz, shift = clock(name)
     idx = df.index.tz_localize("UTC") if df.index.tz is None else df.index
-    df.index = idx.tz_convert("America/New_York").tz_localize(None) - SHIFT
+    df.index = idx.tz_convert(tz).tz_localize(None) - shift
     return df
 
-def candles(df, tf):
+def candles(df, tf, name):
+    tz, shift = clock(name)
     agg = {"Open": "first", "High": "max", "Low": "min", "Close": "last"}
     if tf == "1W":
-        r = df.resample("W-SUN", closed="left", label="left").agg(agg).dropna()
+        rule = "W-MON" if name in CRYPTO else "W-SUN"
+        r = df.resample(rule, closed="left", label="left").agg(agg).dropna()
     else:
         r = df.resample(FREQ[tf], origin="start_day").agg(agg).dropna()
-    now = pd.Timestamp.now(tz="America/New_York").tz_localize(None) - SHIFT
+    now = pd.Timestamp.now(tz=tz).tz_localize(None) - shift
     r = r[r.index + DUR[tf] + SETTLE <= now]
     return r, now
 
@@ -56,11 +69,11 @@ state = json.load(open("state.json")) if os.path.exists("state.json") else []
 
 for name, tk in MARKETS.items():
     try:
-        df = load(tk)
+        df = load(name, tk)
         if df.empty:
             continue
         for tf in TFS:
-            r, now = candles(df, tf)
+            r, now = candles(df, tf, name)
             d = ebp(r)
             print(name, tf, "last candle:", r.index[-1] if len(r) else None, "ebp:", d)
             if d == 0:
